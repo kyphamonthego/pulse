@@ -1,0 +1,10 @@
+[package]
+name = "focus-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Tiny focus session tracker CLI – first monetizable mini-app"
+
+[[bin]]
+name = "focus"
+path = "src/main.rs"

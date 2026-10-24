@@ -1,0 +1,10 @@
+[package]
+name = "agent-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Multi-agent orchestration core with realistic meeting simulation"
+
+[[bin]]
+name = "pulse-agents"
+path = "src/main.rs"

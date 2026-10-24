@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/agent-core",
+    "crates/apps/focus-cli",
+]
+default-members = ["crates/agent-core"]
+
+[workspace.package]
+version = "0.3.1"
+edition = "2021"
+license = "MIT"
+authors = ["Multi-Agent System"]

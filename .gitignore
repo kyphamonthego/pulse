@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Node (leftover)
+node_modules/
+package-lock.json
+package.json
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+*.log
+
+# Test / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Env
+.env
+.env.local
+*.env
+
+# Project specific
+searched_images/
+
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
