@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pulse Office – Học Quản lý Multi-Agent</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #0b1220; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; }
+    header { padding: 12px 16px; background: #111827; border-bottom: 1px solid #1f2937; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    header h1 { font-size: 1.15rem; color: #38bdf8; }
+    header .sub { font-size: 0.8rem; color: #94a3b8; }
+    main { flex: 1; display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
+    @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+    #stage { position: relative; background: #0f172a; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; }
+    #panel { background: #0f172a; border-left: 1px solid #1f2937; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .phase { color: #fbbf24; font-weight: 600; font-size: 0.9rem; }
+    .msg { background: #1e293b; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; line-height: 1.4; border-left: 3px solid #64748b; }
+    .msg.agenda { border-color: #38bdf8; }
+    .msg.decision { border-color: #22c55e; }
+    .msg.risk { border-color: #f87171; }
+    .msg.proposal { border-color: #a78bfa; }
+    .msg.status { border-color: #94a3b8; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .controls { display: flex; gap: 8px; margin-top: auto; }
+    button { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; cursor: pointer; font-size: 0.85rem; }
+    button:hover { border-color: #38bdf8; }
+    .lesson { background: #172554; border: 1px solid #1e3a8a; border-radius: 8px; padding: 10px; font-size: 0.78rem; color: #bfdbfe; }
+    .lesson strong { color: #93c5fd; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Pulse Office – Mô phỏng Quản lý Multi-Agent</h1>
+      <div class="sub">6 robot agents họp standup · Học Agenda → Decision trực tiếp</div>
+    </div>
+    <div class="sub">PROJECT_ROOT · v0.4.0 · <a href="office.html" style="color:#38bdf8">Bản 3D (Three.js)</a></div>
+  </header>
+  <main>
+    <div id="stage"><canvas id="c"></canvas></div>
+    <div id="panel">
+      <div class="phase" id="phase">Sẵn sàng – bấm Bắt đầu</div>
+      <div class="lesson">
+        <strong>Bài học quản lý:</strong><br>
+        1. Orchestrator mở Agenda (scope 80/20)<br>
+        2. Mỗi agent báo Status + Proposal<br>
+        3. Reviewer nêu Risk<br>
+        4. Orchestrator chốt Decision + cập nhật ROADMAP
+      </div>
+      <div id="transcript"></div>
+      <div class="controls">
+        <button id="btn-start">Bắt đầu cuộc họp</button>
+        <button id="btn-pause">Tạm dừng</button>
+      </div>
+    </div>
+  </main>
+  <script>
+    const AGENTS = [
+      { id: 'Orchestrator', color: '#38bdf8', x: 0.50, y: 0.28 },
+      { id: 'Researcher',   color: '#a78bfa', x: 0.22, y: 0.55 },
+      { id: 'Architect',    color: '#22c55e', x: 0.35, y: 0.72 },
+      { id: 'Implementer',  color: '#f59e0b', x: 0.65, y: 0.72 },
+      { id: 'Reviewer',     color: '#f87171', x: 0.78, y: 0.55 },
+      { id: 'Documenter',   color: '#94a3b8', x: 0.50, y: 0.82 },
+    ];
+    const SCRIPT = [
+      { from: 'Orchestrator', kind: 'agenda',   text: 'Daily cycle. Chỉ 1 vertical slice (80/20). Mục tiêu: học quản lý qua mô phỏng agents.' },
+      { from: 'Researcher',   kind: 'status',   text: 'User cần học quản lý. Best practice: quan sát standup thật → Decision & ROADMAP.' },
+      { from: 'Researcher',   kind: 'proposal', text: 'Office sim + 6 robot. Dạy chu trình Agenda → Status → Proposal → Risk → Decision.' },
+      { from: 'Architect',    kind: 'status',   text: 'Giữ 1 PROJECT_ROOT. Preview Canvas 2D + bản Three.js 3D.' },
+      { from: 'Architect',    kind: 'proposal', text: 'Agents quanh bàn họp. Panel = transcript quản lý realtime.' },
+      { from: 'Implementer',  kind: 'status',   text: 'Ship preview chạy ngay, không cần cài đặt.' },
+      { from: 'Implementer',  kind: 'proposal', text: 'Slice hôm nay: mô phỏng quản lý trực quan. invoice-cli để ngày mai.' },
+      { from: 'Reviewer',     kind: 'risk',     text: 'Rủi ro: quá phức tạp. Mitigation: geometry / UI đơn giản, rõ ràng.' },
+      { from: 'Reviewer',     kind: 'status',   text: 'Pass khi thấy agents + transcript + hiểu vòng quản lý.' },
+      { from: 'Documenter',   kind: 'status',   text: 'ROADMAP: office-preview = done. Next = invoice-cli.' },
+      { from: 'Orchestrator', kind: 'decision', text: 'DECISION: Ship Pulse Office. User học quản lý bằng cách xem agents vận hành thực tế.' },
+    ];
+
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    let W, H, step = 0, paused = true, last = 0;
+    const STEP_MS = 2400;
+    let speaking = null;
+
+    function resize() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      W = canvas.width = rect.width * devicePixelRatio;
+      H = canvas.height = rect.height * devicePixelRatio;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function drawRobot(ax, ay, color, name, isSpeak) {
+      const s = Math.min(W, H) / (devicePixelRatio || 1) * 0.06;
+      const x = ax * (W / (devicePixelRatio || 1));
+      const y = ay * (H / (devicePixelRatio || 1));
+      const sc = isSpeak ? 1.12 : 1;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(sc, sc);
+      ctx.fillStyle = color;
+      ctx.fillRect(-s*0.45, -s*0.1, s*0.9, s*1.0);
+      ctx.fillRect(-s*0.35, -s*0.85, s*0.7, s*0.6);
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = color; ctx.shadowBlur = 8;
+      ctx.fillRect(-s*0.2, -s*0.65, s*0.15, s*0.15);
+      ctx.fillRect(s*0.05, -s*0.65, s*0.15, s*0.15);
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, -s*0.85); ctx.lineTo(0, -s*1.15); ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(0, -s*1.2, s*0.1, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = color;
+      ctx.fillRect(-s*0.7, 0, s*0.25, s*0.7);
+      ctx.fillRect(s*0.45, 0, s*0.25, s*0.7);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-s*0.3, s*0.9, s*0.25, s*0.55);
+      ctx.fillRect(s*0.05, s*0.9, s*0.25, s*0.55);
+      ctx.fillStyle = 'rgba(15,23,42,0.9)';
+      const tw = ctx.measureText(name).width;
+      ctx.fillRect(-tw/2 - 6, s*1.55, tw + 12, 18);
+      ctx.fillStyle = color;
+      ctx.font = 'bold 11px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(name, 0, s*1.68);
+      ctx.restore();
+    }
+
+    function draw() {
+      const w = W / (devicePixelRatio || 1);
+      const h = H / (devicePixelRatio || 1);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 12; i++) {
+        ctx.beginPath(); ctx.moveTo(0, h*0.2 + i*(h*0.07)); ctx.lineTo(w, h*0.2 + i*(h*0.07)); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(i*(w/10), h*0.15); ctx.lineTo(i*(w/10), h); ctx.stroke();
+      }
+      const tx = w*0.5, ty = h*0.48;
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(tx - w*0.18, ty - h*0.04, w*0.36, h*0.08);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(tx - w*0.17, ty + h*0.04, w*0.04, h*0.06);
+      ctx.fillRect(tx + w*0.13, ty + h*0.04, w*0.04, h*0.06);
+      AGENTS.forEach(a => drawRobot(a.x, a.y, a.color, a.id, speaking === a.id));
+      ctx.fillStyle = '#64748b';
+      ctx.font = '12px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('Phòng họp Pulse · 6 Agents', w/2, 24);
+    }
+
+    const tr = document.getElementById('transcript');
+    const phase = document.getElementById('phase');
+
+    function addMsg(item) {
+      const div = document.createElement('div');
+      div.className = 'msg ' + item.kind;
+      const ag = AGENTS.find(a => a.id === item.from);
+      div.innerHTML = '<span class="dot" style="background:'+(ag?ag.color:'#94a3b8')+'"></span><strong>'+item.from+'</strong> · '+item.kind.toUpperCase()+'<br>'+item.text;
+      tr.appendChild(div);
+      tr.scrollTop = tr.scrollHeight;
+    }
+
+    function tick(t) {
+      requestAnimationFrame(tick);
+      draw();
+      if (paused) return;
+      if (t - last < STEP_MS) return;
+      last = t;
+      if (step >= SCRIPT.length) {
+        phase.textContent = 'Hết họp · Decision đã ghi · Bạn đã học vòng quản lý đầy đủ';
+        speaking = null;
+        return;
+      }
+      const item = SCRIPT[step++];
+      speaking = item.from;
+      phase.textContent = 'Bước ' + step + '/' + SCRIPT.length + ' · ' + item.from + ' đang phát biểu';
+      addMsg(item);
+      setTimeout(() => { if (speaking === item.from) speaking = null; }, STEP_MS - 400);
+    }
+    requestAnimationFrame(tick);
+
+    document.getElementById('btn-start').onclick = () => {
+      step = 0; last = 0; paused = false; speaking = null;
+      tr.innerHTML = '';
+      phase.textContent = 'Cuộc họp bắt đầu…';
+      document.getElementById('btn-start').textContent = 'Chạy lại';
+    };
+    document.getElementById('btn-pause').onclick = (e) => {
+      paused = !paused;
+      e.target.textContent = paused ? 'Tiếp tục' : 'Tạm dừng';
+    };
+  </script>
+</body>
+</html>
