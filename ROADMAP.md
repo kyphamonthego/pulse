@@ -18,3 +18,7 @@ invoice-cli: generate simple invoice from CLI flags, pure std, monetizable via t
 - Each mini-app solves the smallest possible problem.
 - Pure std preferred until network is reliable.
 - Roadmap is rewritten by agents after every meeting.
+
+## Remote
+- GitHub: https://github.com/kyphamonthego/pulse
+- Connected 2026-10-24 by multi-agent system
